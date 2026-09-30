@@ -51,21 +51,24 @@ def turn_to_degrees(direction: int, target_degrees:int):
             raise Exception("target_degrees has to be greater than or equal to zero. Got:" + str(target_degrees))
         remaining = target_degrees
         if direction == motor.CLOCKWISE:
-            sign = 1
-        else:
             sign = -1
+        else:
+            sign = 1
         decidegrees_turned = 0
         while abs(decidegrees_turned) < target_decidegrees:
+            if decidegrees_turned < 0:
+                print("decidegrees turned = " + str(decidegrees_turned))
+                break
             speed = degrees_per_second
-            print('remaining ' + str(remaining) + ' target_degrees ' + str(target_degrees))
+            print('remaining ' + str(remaining) + ' target_decidegrees ' + str(target_decidegrees))
             if remaining <= 30:
                 speed = 50
-            motor.run(LEFT_MOTOR_PORT, (sign * -speed), acceleration=1000)
-            motor.run(RIGHT_MOTOR_PORT, (sign * -speed), acceleration=1000)
+            motor.run(LEFT_MOTOR_PORT, (sign * speed), acceleration=1000)
+            motor.run(RIGHT_MOTOR_PORT, (sign * speed), acceleration=1000)
             yaw = motion_sensor.tilt_angles()[0]
-            decidegrees_turned = abs(yaw)
+            decidegrees_turned = yaw * sign
             remaining = target_decidegrees - decidegrees_turned
-            print('degrees turned = ' + str(decidegrees_turned) + " speed = " + str(speed))
+            print('decidegrees turned = ' + str(decidegrees_turned) + " speed = " + str(speed))
         print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]))
         motor.stop(LEFT_MOTOR_PORT)
         print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]))
@@ -73,7 +76,7 @@ def turn_to_degrees(direction: int, target_degrees:int):
         print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]))
 async def main():
     # write your code here
-    drive_backwards(30, 300)
+    turn_to_degrees(motor.COUNTERCLOCKWISE, 180)
     #drive_straight(30, 500)
 
 runloop.run(main())
