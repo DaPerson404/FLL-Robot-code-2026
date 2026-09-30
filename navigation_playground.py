@@ -8,30 +8,30 @@ RIGHT_MOTOR_PORT = port.E
 WHEEL_CIRCUMFERENCE_CM = 27.6
 
 
-def drive_straight(distance_in_cm:int, degrees_per_second:int, direction:int):
+def drive_straight(distance_in_cm:int, degrees_per_second:int):
     distance_moved=0
     motor.reset_relative_position(LEFT_MOTOR_PORT, 0)
     motor.reset_relative_position(RIGHT_MOTOR_PORT, 0)
-    
+
     while distance_moved < distance_in_cm:
         motor.run(LEFT_MOTOR_PORT, int(-degrees_per_second), acceleration=1000)
         motor.run(RIGHT_MOTOR_PORT, int(degrees_per_second), acceleration=1000)
         distance_moved = (motor.relative_position(RIGHT_MOTOR_PORT) / 360) * WHEEL_CIRCUMFERENCE_CM
         print('distance moved ' + str(distance_moved))
-    
+
     motor.stop(LEFT_MOTOR_PORT)
     motor.stop(RIGHT_MOTOR_PORT)
 
 
-def drive_straight2(distance_in_cm:int, degrees_per_second:int, direction):
-    if direction 
+def drive_backwards(distance_in_cm:int, degrees_per_second:int):
     distance_moved=0
     motor.reset_relative_position(LEFT_MOTOR_PORT, 0)
     motor.reset_relative_position(RIGHT_MOTOR_PORT, 0)
-    while distance_moved < distance_in_cm:
-        motor.run(LEFT_MOTOR_PORT, int(-degrees_per_second), acceleration=1000)
-        motor.run(RIGHT_MOTOR_PORT, int(degrees_per_second), acceleration=1000)
-        distance_moved = (motor.relative_position(RIGHT_MOTOR_PORT) / 360) * WHEEL_CIRCUMFERENCE_CM
+    while distance_moved <= distance_in_cm:
+        motor.run(LEFT_MOTOR_PORT, int(degrees_per_second), acceleration=1000)
+        motor.run(RIGHT_MOTOR_PORT, int(-degrees_per_second), acceleration=1000)
+        print(motor.relative_position(LEFT_MOTOR_PORT))
+        distance_moved = (motor.relative_position(LEFT_MOTOR_PORT) / 360) * WHEEL_CIRCUMFERENCE_CM
         print('distance moved ' + str(distance_moved))
     motor.stop(LEFT_MOTOR_PORT)
     motor.stop(RIGHT_MOTOR_PORT)
@@ -73,8 +73,7 @@ def turn_to_degrees(direction: int, target_degrees:int):
         print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]))
 async def main():
     # write your code here
-    drive_straight(80, 500)
-    drive_straight(-80, 500)
+    drive_backwards(30, 300)
     #drive_straight(30, 500)
 
 runloop.run(main())
