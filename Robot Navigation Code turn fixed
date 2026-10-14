@@ -1,0 +1,251 @@
+import motor
+from hub import port, motion_sensor, light_matrix, sound
+import runloop
+import time
+import motor_pair
+
+LEFT_MOTOR_PORT = port.A
+RIGHT_MOTOR_PORT = port.E
+WHEEL_CIRCUMFERENCE_CM = 27.6
+
+def drive_forward(distance_in_cm:int, degrees_per_second:int):
+    distance_moved=0
+    motor.reset_relative_position(LEFT_MOTOR_PORT, 0)
+    motor.reset_relative_position(RIGHT_MOTOR_PORT, 0)
+
+    original_yaw = motion_sensor.tilt_angles()[0]
+
+    KP = 5
+
+    last_measured = -1
+    while distance_moved < distance_in_cm:
+        current_yaw = motion_sensor.tilt_angles()[0]
+        correction = int((current_yaw - original_yaw) * KP)
+        if last_measured != current_yaw // 10:
+            print("DRIVE STRAIGHT: INSIDE " + str(current_yaw))
+            last_measured = current_yaw // 10
+        motor.run(RIGHT_MOTOR_PORT, int(degrees_per_second - correction), acceleration=1000)
+        motor.run(LEFT_MOTOR_PORT, int(-degrees_per_second + correction), acceleration=1000)
+        distance_moved = abs((motor.relative_position(RIGHT_MOTOR_PORT) / 360) * WHEEL_CIRCUMFERENCE_CM)
+        # print('distance moved ' + str(distance_moved))
+        # if current_yaw != 0:
+        #     if current_yaw < 0:
+        #         turn_to_degrees2(motor.CLOCKWISE, 0)
+        #     else:
+        #         turn_to_degrees2(motor.COUNTERCLOCKWISE, 0)
+   
+
+
+    motor.stop(LEFT_MOTOR_PORT)
+    motor.stop(RIGHT_MOTOR_PORT)
+
+def drive_straight2(distance_in_cm:int, degrees_per_second:int):
+    distance_moved=0
+    starting_yaw = motion_sensor.tilt_angles()[0]
+    motor.reset_relative_position(LEFT_MOTOR_PORT, 0)
+    motor.reset_relative_position(RIGHT_MOTOR_PORT, 0)
+    move_backwards = distance_in_cm < 0
+    
+    if move_backwards:
+        while distance_moved < distance_in_cm:
+            correctionr = 0
+            correctionl = 0
+            now_yaw = motion_sensor.tilt_angles()[0]
+            if now_yaw < starting_yaw:
+                correctionr = 1
+            elif now_yaw > starting_yaw:
+                correctionl = 1
+            motor.run(LEFT_MOTOR_PORT, int(degrees_per_second + correctionl), acceleration=1000)
+            motor.run(RIGHT_MOTOR_PORT, int(-degrees_per_second - correctionr), acceleration=1000)
+            distance_moved = (motor.relative_position(LEFT_MOTOR_PORT) / 360) * WHEEL_CIRCUMFERENCE_CM
+            print('distance moved ' + str(distance_moved))
+    else:
+        while distance_moved < distance_in_cm:
+            correctionr = 0
+            correctionl = 0
+            now_yaw = motion_sensor.tilt_angles()[0]
+            print("starting yaw is " + str(starting_yaw) + ", current yaw is " + str(now_yaw))
+            if now_yaw < starting_yaw:
+                correctionl = starting_yaw - abs(now_yaw)
+                print("correctionl is " + str(correctionl))
+            elif now_yaw > starting_yaw:
+                correctionr = starting_yaw - abs(now_yaw)
+                print("correctionr is" + str(correctionr))
+            motor.run(LEFT_MOTOR_PORT, int(-degrees_per_second - correctionl), acceleration=1000)
+            motor.run(RIGHT_MOTOR_PORT, int(degrees_per_second + correctionr), acceleration=1000)
+            distance_moved = (motor.relative_position(RIGHT_MOTOR_PORT) / 360) * WHEEL_CIRCUMFERENCE_CM
+            print('distance moved ' + str(distance_moved))
+    
+
+    motor.stop(LEFT_MOTOR_PORT)
+    motor.stop(RIGHT_MOTOR_PORT)
+
+def drive_straight(distance_in_cm:int, degrees_per_second:int, direction:bool):
+    #for drive_straight, the boolean means if True it means it will drive forward while False mean it will go backwards
+
+    current_yaw = motion_sensor.tilt_angles()[0]
+    print("DRIVE STRAIGHT: BEFORE " + str(current_yaw))
+    if not direction:
+        degrees_per_second=-degrees_per_second
+
+    drive_forward(distance_in_cm, degrees_per_second)
+    current_yaw = motion_sensor.tilt_angles()[0]
+    print("DRIVE STRAIGHT: AFTER " + str(current_yaw))
+
+
+def turn_to_degrees(direction: int, target_degrees:int):
+        # motion_sensor.reset_yaw(0)
+        # print("Yaw has been reset.")
+        print("BEFORE " + str(motion_sensor.tilt_angles()[0]))
+        light_matrix.write("B")
+        light_matrix.write(str(motion_sensor.tilt_angles()[0]))
+        time.sleep_ms(200)
+        if target_degrees <= 30:
+            degrees_per_second:int = 50
+        elif target_degrees <= 90:
+            degrees_per_second:int = 100
+        else:
+            degrees_per_second:int = 150
+        target_decidegrees = 10 * target_degrees
+        if target_degrees < 0:
+            raise Exception("target_degrees has to be greater than or equal to zero. Got: " + str(target_degrees))
+        if target_degrees >= 180:
+            raise Exception("target_degrees has to be less than 180. Got: " + str(target_degrees))
+        remaining = target_decidegrees
+        if direction == motor.CLOCKWISE:
+            sign = 1
+        else:
+            sign = -1
+        decidegrees_turned = 0
+        while abs(decidegrees_turned) < target_decidegrees:
+            speed = degrees_per_second
+            # print('remaining ' + str(remaining) + ' target_decidegrees ' + str(target_decidegrees))
+            if remaining <= 30:
+                speed = 50
+            motor.run(LEFT_MOTOR_PORT, (sign * -speed), acceleration=1000)
+            motor.run(RIGHT_MOTOR_PORT, (sign * -speed), acceleration=1000)
+            yaw = motion_sensor.tilt_angles()[0]
+            # print('current yaw is ' + str(yaw))
+            decidegrees_turned = abs(yaw)
+            remaining = target_decidegrees - decidegrees_turned
+            # print('decidegrees turned = ' + str(decidegrees_turned) + " speed = " + str(speed))
+        # print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]) + ' decidegrees')
+        motor.stop(LEFT_MOTOR_PORT)
+        # print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]) + ' decidegrees')
+        motor.stop(RIGHT_MOTOR_PORT)
+        # print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]) + ' decidegrees')
+        light_matrix.write("A")
+        light_matrix.write(str(motion_sensor.tilt_angles()[0]))
+        print("AFTER " + str(motion_sensor.tilt_angles()[0]))
+        motion_sensor.reset_yaw(0)
+
+def turn_to_degrees2(direction: int, target_yaw_decidegrees:int):
+    error_threshold = 50
+    # motion_sensor.reset_yaw(0)
+    # print("Yaw has been reset.")
+    current_yaw = motion_sensor.tilt_angles()[0]
+    print("BEFORE " + str(current_yaw))
+    abs_gap =  abs(abs(current_yaw) - abs(target_yaw_decidegrees))
+    light_matrix.write("B")
+    light_matrix.write(str(motion_sensor.tilt_angles()[0]))
+    time.sleep_ms(200)
+    if abs_gap <= 30:
+        degrees_per_second:int = 50
+    elif abs_gap <= 90:
+        degrees_per_second:int = 100
+    else:
+        degrees_per_second:int = 150
+    if direction == motor.CLOCKWISE:
+        sign = 1
+    else:
+        sign = -1
+    print("abs gap is " + str(abs_gap))
+    while abs_gap > error_threshold:
+        speed = degrees_per_second
+        # print('remaining ' + str(remaining) + ' target_decidegrees ' + str(target_decidegrees))
+        motor.run(LEFT_MOTOR_PORT, (sign * -speed), acceleration=1000)
+        motor.run(RIGHT_MOTOR_PORT, (sign * -speed), acceleration=1000)
+        current_yaw = motion_sensor.tilt_angles()[0]
+        abs_gap = abs(abs(current_yaw) - abs(target_yaw_decidegrees))
+        # print('current yaw is ' + str(yaw))
+        # print('decidegrees turned = ' + str(decidegrees_turned) + " speed = " + str(speed))
+    # print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]) + ' decidegrees')
+    motor.stop(LEFT_MOTOR_PORT)
+    # print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]) + ' decidegrees')
+    motor.stop(RIGHT_MOTOR_PORT)
+    # print ('yaw angle is ' + str(motion_sensor.tilt_angles()[0]) + ' decidegrees')
+    light_matrix.write("A")
+    light_matrix.write(str(motion_sensor.tilt_angles()[0]))
+    print("AFTER " + str(motion_sensor.tilt_angles()[0]))
+
+
+
+
+
+async def mission_roots():
+    motion_sensor.reset_yaw(0)
+    motor.run_for_degrees(port.D, 360, 720)
+    drive_straight(16,300, True)
+    motion_sensor.reset_yaw(0)
+    turn_to_degrees(motor.COUNTERCLOCKWISE, 35)
+    motion_sensor.reset_yaw(0)
+    drive_straight(35, 300, True)
+    motion_sensor.reset_yaw(0)
+    await motor.run_for_degrees(port.D, -340, 300)
+    drive_straight(35, 300, False)
+    turn_to_degrees(motor.CLOCKWISE, 40)
+
+
+async def main5555():
+    motion_sensor.reset_yaw(0)
+    motor.run_for_degrees(port.D, -90, 50)
+    drive_straight(40, 500, True)
+    time.sleep_ms(200)
+    turn_to_degrees(motor.CLOCKWISE, 32)
+    drive_straight(13, 50, True)
+    motor.run_for_degrees(port.D, 60, 50)
+
+async def mission_forest_elder():
+    motion_sensor.reset_yaw(0)
+    await motor.run_for_degrees(port.D, 360, 720)
+    drive_straight(30, 300, True)
+    await motor.run_for_degrees(port.D, -200, 360)
+    drive_straight(5, 300, True)
+    await motor.run_for_degrees(port.D, 150, 360)
+    print("ring lifted")
+    drive_straight(16, 100, False)
+    await motor.run_for_degrees(port.D, -150, 100)
+    print("ring set down")
+    yaw = motion_sensor.tilt_angles()[0]
+    if yaw < 0:
+        turn_to_degrees(motor.CLOCKWISE, 5)
+    await motor.run_for_degrees(port.D, -10, 30)
+    drive_straight(10, 100, False)
+
+async def mission_harvester_ants():
+    drive_straight(5, 300, True)
+    print("ENTERED...")
+    light_matrix.write("HELLO")
+    turn_to_degrees2(motor.COUNTERCLOCKWISE, -500)
+    drive_straight(60, 300, True)
+    print("target is 0")
+    turn_to_degrees2(motor.CLOCKWISE, 0)
+    await motor.run_for_degrees(port.D, 0, 0)
+    print("current is supposed to be 0 but it probably isn't")
+    await motor.run_for_degrees(port.D, 0, 0)
+    # drive_straight(10, 300, True)
+    # turn_to_degrees2(motor.CLOCKWISE, 450)
+    # drive_straight(20, 200, True)
+
+
+
+
+async def main():
+    drive_straight2(100, 300)
+
+runloop.run(main())
+#light_matrix.write("hihihihihihihi :) ;) :) :) 8) >:) >8)    \(>_<)/    ( •̀ ω •́ )    ( ﾉ ﾟｰﾟ)ﾉ    ༼ つ ◕_◕ ༽つ    ¯\_(ツ)_/¯")
+
+
+# def ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ༼ つ ◕_◕ ༽つ:
+    # print ("hi
